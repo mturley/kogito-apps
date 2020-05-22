@@ -1,10 +1,12 @@
+/* tslint:disable */
 import {
   Breadcrumb,
   BreadcrumbItem,
   Card,
   Grid,
   GridItem,
-  PageSection
+  PageSection,
+  Bullseye
 } from '@patternfly/react-core';
 import { ServerErrors } from '@kogito-apps/common/src/components';
 import React, { useState, useEffect } from 'react';
@@ -12,6 +14,7 @@ import { Link } from 'react-router-dom';
 import PageTitleComponent from '../../Molecules/PageTitleComponent/PageTitleComponent';
 import DataToolbarComponent from '../../Molecules/DataToolbarComponent/DataToolbarComponent';
 import './DataList.css';
+//@ts-ignore
 import DataListComponent from '../../Organisms/DataListComponent/DataListComponent';
 import EmptyStateComponent from '../../Atoms/EmptyStateComponent/EmptyStateComponent';
 import LoadMoreComponent from '../../Atoms/LoadMoreComponent/LoadMoreComponent';
@@ -19,12 +22,18 @@ import ProcessBulkModalComponent from '../../Atoms/ProcessBulkModalComponent/Pro
 import {
   useGetProcessInstancesLazyQuery,
   ProcessInstanceState,
-  useGetProcessInstancesWithBusinessKeyLazyQuery
+  useGetProcessInstancesWithBusinessKeyLazyQuery,
+  useGetProcessInstancesQuery,
+  GetChildInstancesDocument
 } from '../../../graphql/types';
 import axios from 'axios';
-import { InfoCircleIcon } from '@patternfly/react-icons';
+import ProcessInstanceTable from '../../Organisms/Table/Table';
+import { setTitle } from '../../../utils/Utils';
+import SpinnerComponent from '../../Atoms/SpinnerComponent/SpinnerComponent';
+import { useApolloClient } from '@apollo/react-hooks';
 
 const DataListContainer: React.FC<{}> = () => {
+  const client = useApolloClient();
   const [defaultPageSize] = useState(10);
   const [initData, setInitData] = useState<any>({});
   const [checkedArray, setCheckedArray] = useState<any>(['ACTIVE']);
@@ -46,9 +55,12 @@ const DataListContainer: React.FC<{}> = () => {
     businessKey: []
   });
   const [searchWord, setSearchWord] = useState<string>('');
+  //@ts-ignore
   const [isFilterClicked, setIsFilterClicked] = useState<boolean>(false);
   const [selectedNumber, setSelectedNumber] = useState<number>(0);
   const [isAllChecked, setIsAllChecked] = useState(false);
+  const [childrenByParentItemId, setChildrenByParentItemId] = useState({});
+  const [rows, setRows] = useState([]);
   const [
     getProcessInstances,
     { loading, data, error }
@@ -64,6 +76,41 @@ const DataListContainer: React.FC<{}> = () => {
     fetchPolicy: 'network-only',
     notifyOnNetworkStatusChange: true
   });
+
+  const {
+    loading: parentloading,
+    data: parentData
+  } = useGetProcessInstancesQuery({
+    variables: {
+      state: [ProcessInstanceState.Active],
+      offset: 0,
+      limit: pageSize
+    },
+    fetchPolicy: 'network-only',
+    notifyOnNetworkStatusChange: true
+  });
+
+  useEffect(() => {
+    if (!parentloading) {
+      setRows(parentData.ProcessInstances);
+    }
+  }, [parentData]);
+
+  const fetchChildren = parentInstance => {
+    client
+      .query({
+        query: GetChildInstancesDocument,
+        variables: {
+          rootProcessInstanceId: parentInstance.id
+        }
+      })
+      .then(result => {
+        setChildrenByParentItemId(prevChildrenByParentItemId => ({
+          ...prevChildrenByParentItemId,
+          [parentInstance.id]: result.data
+        }));
+      });
+  };
 
   const resetPagination = () => {
     setOffset(0);
@@ -142,13 +189,11 @@ const DataListContainer: React.FC<{}> = () => {
         instance.isOpen = false;
       });
       setLimit(data.ProcessInstances.length);
-      if (offset > 0 && initData.ProcessInstances.length > 0) {
+      if (offset > 0 && rows.length > 0) {
         setIsLoadingMore(false);
-        initData.ProcessInstances = initData.ProcessInstances.concat(
-          data.ProcessInstances
-        );
+        setRows(prevRows => [...prevRows, ...data.ProcessInstances]);
       } else {
-        setInitData(data);
+        setRows(data.ProcessInstances);
       }
     }
   }, [data]);
@@ -172,39 +217,15 @@ const DataListContainer: React.FC<{}> = () => {
       setLimit(getProcessInstancesWithBK.data.ProcessInstances.length);
       if (offset > 0 && initData.ProcessInstances.length > 0) {
         setIsLoadingMore(false);
-        initData.ProcessInstances = initData.ProcessInstances.concat(
-          getProcessInstancesWithBK.data.ProcessInstances
-        );
+        setRows(prevRows => [
+          ...rows,
+          ...getProcessInstancesWithBK.data.ProcessInstances
+        ]);
       } else {
-        setInitData(getProcessInstancesWithBK.data);
+        setRows(getProcessInstancesWithBK.data.ProcessInstances);
       }
     }
   }, [getProcessInstancesWithBK.data]);
-
-  const setTitle = (titleStatus, titleText) => {
-    switch (titleStatus) {
-      case 'success':
-        return (
-          <>
-            <InfoCircleIcon
-              className="pf-u-mr-sm"
-              color="var(--pf-global--info-color--100)"
-            />{' '}
-            {titleText}{' '}
-          </>
-        );
-      case 'failure':
-        return (
-          <>
-            <InfoCircleIcon
-              className="pf-u-mr-sm"
-              color="var(--pf-global--danger-color--100)"
-            />{' '}
-            {titleText}{' '}
-          </>
-        );
-    }
-  };
 
   const handleAbortAll = () => {
     const tempAbortedObj = { ...abortedObj };
@@ -281,11 +302,7 @@ const DataListContainer: React.FC<{}> = () => {
   return (
     <React.Fragment>
       <ProcessBulkModalComponent
-        modalTitle={
-          titleType === 'success'
-            ? setTitle(titleType, modalTitle)
-            : setTitle(titleType, modalTitle)
-        }
+        modalTitle={setTitle(titleType, modalTitle)}
         isModalOpen={isAbortModalOpen}
         abortedMessageObj={abortedMessageObj}
         completedMessageObj={completedMessageObj}
@@ -333,21 +350,20 @@ const DataListContainer: React.FC<{}> = () => {
                 </>
               )}
               {isStatusSelected ? (
-                <DataListComponent
-                  initData={initData}
-                  setInitData={setInitData}
-                  isLoading={isLoading}
-                  setIsError={setIsError}
-                  checkedArray={checkedArray}
-                  pageSize={defaultPageSize}
-                  abortedObj={abortedObj}
-                  setAbortedObj={setAbortedObj}
-                  isFilterClicked={isFilterClicked}
-                  filters={filters}
-                  setIsAllChecked={setIsAllChecked}
-                  setSelectedNumber={setSelectedNumber}
-                  selectedNumber={selectedNumber}
-                />
+                !parentloading &&
+                rows.length !== 0 &&
+                !loading &&
+                !getProcessInstancesWithBK.loading ? (
+                  <ProcessInstanceTable
+                    instances={rows}
+                    childrenByParentItemId={childrenByParentItemId}
+                    fetchChildren={fetchChildren}
+                  ></ProcessInstanceTable>
+                ) : (
+                  <Bullseye>
+                    <SpinnerComponent spinnerText={'loading table'} />
+                  </Bullseye>
+                )
               ) : (
                 <EmptyStateComponent
                   iconType="warningTriangleIcon1"

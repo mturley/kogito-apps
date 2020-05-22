@@ -124,7 +124,7 @@ const resolvers = {
         }
       });
 
-      await timeout(2000);
+      //await timeout(2000);
       if (args['pagination']) {
         return paginatedResult(
           result,

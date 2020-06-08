@@ -1,7 +1,7 @@
 /* tslint:disable */
 import React, { useState, useRef, useEffect, useReducer } from 'react';
 import {
-  expandable,
+  //expandable,
   Table,
   TableHeader,
   sortable,
@@ -66,12 +66,25 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
   const columns = [
     {
       title: 'Process',
-      cellFormatters: [expandable], // TODO implement the formatter stuff ?
-      transforms: [sortable]
+      //cellFormatters: [expandable], // TODO implement the formatter stuff ?
+      transforms: [sortable],
+      props: { style: { width: '25%' } }
     },
-    { title: 'State', transforms: [sortable] },
-    { title: 'Created', transforms: [sortable] },
-    { title: 'Last update', transforms: [sortable] }
+    {
+      title: 'State',
+      transforms: [sortable],
+      props: { style: { width: '20%' } }
+    },
+    {
+      title: 'Created',
+      transforms: [sortable],
+      props: { style: { width: '20%' } }
+    },
+    {
+      title: 'Last update',
+      transforms: [sortable],
+      props: { style: { width: '35%' } }
+    }
   ];
 
   const onCollapse = (event, rowIndex, isOpen) => {
@@ -129,6 +142,7 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
                 key={colIndex}
                 colSpan={row.fullWidth ? columns.length + 1 : 1}
                 role="gridcell"
+                {...cell.props}
               >
                 {cell.title}
               </td>
@@ -151,7 +165,7 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
       </button>
       <Table
         aria-label="Collapsible table"
-        onCollapse={onCollapse}
+        // onCollapse={onCollapse}
         rows={rows}
         cells={columns}
         onSelect={onSelect}

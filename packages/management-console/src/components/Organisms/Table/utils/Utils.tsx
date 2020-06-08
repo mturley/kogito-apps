@@ -35,14 +35,24 @@ export const parentCreator = (processInstance, isOpen) => {
               isLinkShown={false}
             />
           </React.Fragment>
-        )
+        ),
+        props: {
+          style: {
+            width: '25%'
+          }
+        }
       },
       {
         title: (
           <React.Fragment>
             {stateIconCreator(processInstance.state)}
           </React.Fragment>
-        )
+        ),
+        props: {
+          style: {
+            width: '20%'
+          }
+        }
       },
       {
         title: (
@@ -53,7 +63,12 @@ export const parentCreator = (processInstance, isOpen) => {
               ''
             )}
           </React.Fragment>
-        )
+        ),
+        props: {
+          style: {
+            width: '20%'
+          }
+        }
       },
       {
         title: (
@@ -70,7 +85,12 @@ export const parentCreator = (processInstance, isOpen) => {
               ''
             )}
           </React.Fragment>
-        )
+        ),
+        props: {
+          style: {
+            width: '35%'
+          }
+        }
       }
     ],
     props: { id: processInstance.id }
@@ -131,7 +151,12 @@ export const getChildRow = (childItem, parentIndex) => {
                   <TableBody />
                 </Table>
               </React.Fragment>
-            )
+            ),
+            props: {
+              style: {
+                width: '100%'
+              }
+            }
           }
         ]
       };

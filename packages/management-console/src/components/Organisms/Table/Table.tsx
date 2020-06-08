@@ -1,7 +1,7 @@
 /* tslint:disable */
 import React, { useState, useRef, useEffect, useReducer } from 'react';
 import {
-  //expandable,
+  expandable,
   Table,
   TableHeader,
   sortable,
@@ -66,8 +66,8 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
   const columns = [
     {
       title: 'Process',
-      //cellFormatters: [expandable], // TODO implement the formatter stuff ?
-      transforms: [sortable],
+      cellFormatters: [expandable],
+      transforms: [sortable], // TODO implement the sortable stuff
       props: { style: { width: '25%' } }
     },
     {
@@ -108,11 +108,15 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
   const rowRenderer = ({ index, isScrolling, key, style, parent }) => {
     const row = rows[index];
     const isParentRow = row.parent === undefined;
+    const parentRow = isParentRow ? row : rows[row.parent];
 
     // The virtualized extension does not work with the table row renderer built into Table,
     // so we'll need to implement any special behavior ourselves here based on row properties / transforms.
     // (props, selectable, fullWidth, expandable, sortable)
     // Based on the core HTML examples for Table here: https://www.patternfly.org/v4/documentation/core/components/table
+
+    const toggleId = `table-expandable-toggle-${index}`;
+    const contentId = `table-expandable-content-${index}`;
 
     return (
       <CellMeasurer
@@ -122,50 +126,67 @@ const ProcessInstanceTable: React.FC<IOwnProps> = ({
         parent={parent}
         rowIndex={index}
       >
-        <tr data-id={index} style={style} role="row" {...row.props}>
-          {isParentRow && (
-            <td data-key="0" className="pf-c-table__check" role="gridcell">
-              <input
-                type="checkbox"
-                checked={rows[index].selected}
-                onChange={e => {
-                  // @ts-ignore
-                  // TODO this may need to be tweaked once onSelect is implemented
-                  onSelect(e, e.target.checked, 0, { id: rows[index].id });
-                }}
-              />
-            </td>
-          )}
-          {row.cells.map((cell, colIndex) => {
-            return (
-              <td
-                key={colIndex}
-                colSpan={row.fullWidth ? columns.length + 1 : 1}
-                role="gridcell"
-                {...cell.props}
-              >
-                {cell.title}
-              </td>
-            );
-          })}
-        </tr>
+        <tbody
+          role="rowgroup"
+          className={parentRow.isOpen ? 'pf-m-expanded' : ''}
+          style={style}
+        >
+          <tr data-id={index} role="row" {...row.props}>
+            {isParentRow && (
+              <>
+                <td className="pf-c-table__toggle" role="cell">
+                  <button
+                    className={`pf-c-button pf-m-plain ${
+                      row.isOpen ? 'pf-m-expanded' : ''
+                    }`}
+                    aria-labelledby={toggleId}
+                    id={toggleId}
+                    aria-label="Details"
+                    aria-controls={contentId}
+                    aria-expanded="true"
+                    onClick={event => onCollapse(event, index, !row.isOpen)}
+                  >
+                    <div className="pf-c-table__toggle-icon">
+                      <i className="fas fa-angle-down" aria-hidden="true"></i>
+                    </div>
+                  </button>
+                </td>
+                <td data-key="0" className="pf-c-table__check" role="gridcell">
+                  <input
+                    type="checkbox"
+                    checked={rows[index].selected}
+                    onChange={e => {
+                      // @ts-ignore
+                      // TODO this may need to be tweaked once onSelect is implemented
+                      onSelect(e, e.target.checked, 0, { id: rows[index].id });
+                    }}
+                  />
+                </td>
+              </>
+            )}
+            {row.cells.map((cell, colIndex) => {
+              return (
+                <td
+                  key={colIndex}
+                  colSpan={row.fullWidth ? columns.length + 1 : 1}
+                  role="gridcell"
+                  {...cell.props}
+                >
+                  {cell.title}
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
       </CellMeasurer>
     );
   };
 
   return (
     <>
-      <button
-        onClick={event => {
-          event.preventDefault();
-          onCollapse(event, 0, !rows[0].isOpen);
-        }}
-      >
-        CLICK TO TEST PERFORMANCE: expand/collapse row 1!
-      </button>
       <Table
         aria-label="Collapsible table"
-        // onCollapse={onCollapse}
+        onCollapse={onCollapse}
         rows={rows}
         cells={columns}
         onSelect={onSelect}
